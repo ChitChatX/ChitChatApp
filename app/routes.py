@@ -1,21 +1,20 @@
 import os
-from dotenv import load_dotenv
-
 import requests
-from flask import Flask, session, abort, redirect, request, render_template, url_for
+from flask import Flask, session, abort, redirect, request, render_template, url_for, Blueprint
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
 from pip._vendor import cachecontrol
 from google.auth.transport.requests import Request
 from functools import wraps
 
-load_dotenv()
+
+main_bp = Blueprint('main',__name__)
 
 GOOGLE_CLIENT_ID = os.getenv("client_id")
 GOOGLE_CLIENT_SECRET = os.getenv("client_secret")
 GOOGLE_REDIRECT_URI = os.getenv("redirect_uri")
 
-app = Flask("Google Login App")
+app = Flask("__name__")
 app.secret_key = GOOGLE_CLIENT_SECRET
 
 # to bypass 0auth https rule, make sure to remove in production 
@@ -48,22 +47,20 @@ def login_is_required(function):
         return function()
     return wrapper
 
-    return wrapper
-
-@app.route("/login")
+@main_bp.route("/login")
 def login():
     authorization_url, state = flow.authorization_url()
     session["state"] = state
     return redirect(authorization_url)
 
 
-@app.route("/chat")
+@main_bp.route("/chat")
 @login_is_required
 def chat():
     return render_template("chat.html", user_name = session.get("name"))
 
 
-@app.route("/callback")
+@main_bp.route("/callback")
 def callback():
     flow.fetch_token(authorization_response=request.url)
 
@@ -83,18 +80,15 @@ def callback():
 
     session["google_id"] = id_info.get("sub")
     session["name"] = id_info.get("name")
-    return redirect(url_for("chat"))
+    return redirect(url_for("main.chat"))
 
-@app.route("/")
+@main_bp.route("/")
 def index():
     if 'google_id' in session:
-        return redirect(url_for("chat"))
+        return redirect(url_for("main.chat"))
     return render_template("login.html")
 
-@app.route("/logout")
+@main_bp.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
-
-if __name__ == "__main__":
-    app.run(debug=True)
