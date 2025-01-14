@@ -1,43 +1,87 @@
-from flask_socketio import join_room, leave_room, emit
-import socketio
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_user, login_required, logout_user, current_user
+from .model import User, Message, db  
+from . import socketio  
 
-active_rooms = {}  # In-memory dictionary to track rooms {room_id: [users]}
+main = Blueprint('main', __name__)
 
-@socketio.on('join_room')
-def handle_join_room(data):
-    room = data.get('room')
-    username = data.get('username')
-    if room not in active_rooms:
-        active_rooms[room] = []
-    if username not in active_rooms[room]:
-        active_rooms[room].append(username)
-    join_room(room)
-    emit('system_message', {'message': f'{username} has joined the room.'}, room=room)
+@main.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.chat', username=current_user.username))
+    return redirect(url_for('main.login'))
 
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.chat', username=current_user.username))
+   
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('main.chat', username=user.username))
+        else:
+            flash('Invalid username or password', 'error')
+   
+    return render_template('login.html')
 
+@main.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.chat', username=current_user.username))
+   
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+       
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'error')
+            return redirect(url_for('main.register'))
+       
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists', 'error')
+            return redirect(url_for('main.register'))
+       
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+       
+        flash('Registration successful. Please log in.', 'success')
+        return redirect(url_for('main.login'))
+   
+    return render_template('register.html')
 
-@socketio.on('leave_room')
-def handle_leave_room(data):
-    room = data.get('room')
-    username = data.get('username')
+@main.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('main.index'))
 
-    if room in active_rooms and username in active_rooms[room]:
-        active_rooms[room].remove(username)
-        if not active_rooms[room]:  # Remove room if empty
-            del active_rooms[room]
-    leave_room(room)
-    emit('system_message', {'message': f'{username} has left the room.'}, room=room)
+@main.route('/chat/<username>')
+@login_required
+def chat(username):
+    if username != current_user.username:
+        flash('You can only access your own chat.', 'error')
+        return redirect(url_for('main.chat', username=current_user.username))
+    return render_template('chat.html', username=username)
 
+@main.route('/api/users')
+@login_required
+def get_users():
+    users = User.query.all()
+    return jsonify([user.username for user in users if user != current_user])
 
-@socketio.on('send_message')
-def handle_send_message(data):
-    room = data.get('room')
-    message = data.get('message')
-    timestamp = data.get('timestamp')
-    sender = data.get('sender')
-    emit('receive_message', {
-        'message': message,
-        'timestamp': timestamp,
-        'sender': sender
-    }, room=room)
-
+@main.route('/delete_message/<int:message_id>', methods=['POST'])
+@login_required
+def delete_message(message_id):
+    message = Message.query.get(message_id)
+    if message and (message.sender_id == current_user.id or message.recipient_id == current_user.id):
+        db.session.delete(message)
+        db.session.commit()
+        return jsonify({'success': True}), 200
+    return jsonify({'success': False, 'error': 'Message not found or permission denied'}), 404
