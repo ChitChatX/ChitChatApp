@@ -1,9 +1,9 @@
 from flask import Flask
-from flask_session import Session
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_dance.contrib.google import make_google_blueprint
+from . model import db
 
 db = SQLAlchemy()
 socketio = SocketIO()
