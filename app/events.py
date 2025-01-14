@@ -1,7 +1,7 @@
 from flask_socketio import emit, join_room, leave_room
-from .model import User, Message, db  # Import your models
+from .model import User, Message, db 
 from flask_login import current_user
-from . import socketio  # Import socketio instance
+from . import socketio  
 
 @socketio.on('join')
 def on_join(data):

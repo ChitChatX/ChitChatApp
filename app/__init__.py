@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_dance.contrib.google import make_google_blueprint
 from . model import db
+from .routes import main_bp
+from .events import socketio
 
 db = SQLAlchemy()
 socketio = SocketIO()
@@ -20,7 +22,6 @@ def create_app():
     login_manager.init_app(app)
     
     #Blueprints
-    from .routes import main_bp
     app.register_blueprint(main_bp)
     return app
 
