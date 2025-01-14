@@ -1,94 +1,87 @@
-import os
-import requests
-from flask import Flask, session, abort, redirect, request, render_template, url_for, Blueprint
-from google.oauth2 import id_token
-from google_auth_oauthlib.flow import Flow
-from pip._vendor import cachecontrol
-from google.auth.transport.requests import Request
-from functools import wraps
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_user, login_required, logout_user, current_user
+from .model import User, Message, db  
+from . import socketio  
 
+main = Blueprint('main', __name__)
 
-main_bp = Blueprint('main',__name__)
-
-GOOGLE_CLIENT_ID = os.getenv("client_id")
-GOOGLE_CLIENT_SECRET = os.getenv("client_secret")
-GOOGLE_REDIRECT_URI = os.getenv("redirect_uri")
-
-app = Flask("__name__")
-app.secret_key = GOOGLE_CLIENT_SECRET
-
-# to bypass 0auth https rule, make sure to remove in production 
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
-flow = Flow.from_client_config(
-    {
-        "web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "project_id": "phonic-arcana-444420-h0",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uris": [
-                GOOGLE_REDIRECT_URI,
-                ]
-        }
-    },
-    scopes=["https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile", "openid"]
-)
-flow.redirect_uri = GOOGLE_REDIRECT_URI
-
-
-def login_is_required(function):
-    @wraps(function)
-    def wrapper(*args, **kwargs):
-        if "google_id" not in session:
-            return abort(401)  # Authorization required
-        return function()
-    return wrapper
-
-@main_bp.route("/login")
-def login():
-    authorization_url, state = flow.authorization_url()
-    session["state"] = state
-    return redirect(authorization_url)
-
-
-@main_bp.route("/chat")
-@login_is_required
-def chat():
-    return render_template("chat.html", user_name = session.get("name"))
-
-
-@main_bp.route("/callback")
-def callback():
-    flow.fetch_token(authorization_response=request.url)
-
-    if not session["state"] == request.args["state"]:
-        abort(500)  # State doesnt match
-
-    credentials = flow.credentials
-    request_session = requests.session()
-    cached_session = cachecontrol.CacheControl(request_session)
-    token_request = Request(session=cached_session)
-
-    id_info = id_token.verify_oauth2_token(
-         id_token=credentials._id_token,
-         request=token_request,
-         audience=GOOGLE_CLIENT_ID,
-    )
-
-    session["google_id"] = id_info.get("sub")
-    session["name"] = id_info.get("name")
-    return redirect(url_for("main.chat"))
-
-@main_bp.route("/")
+@main.route('/')
 def index():
-    if 'google_id' in session:
-        return redirect(url_for("main.chat"))
-    return render_template("login.html")
+    if current_user.is_authenticated:
+        return redirect(url_for('main.chat', username=current_user.username))
+    return redirect(url_for('main.login'))
 
-@main_bp.route("/logout")
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.chat', username=current_user.username))
+   
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('main.chat', username=user.username))
+        else:
+            flash('Invalid username or password', 'error')
+   
+    return render_template('login.html')
+
+@main.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.chat', username=current_user.username))
+   
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+       
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'error')
+            return redirect(url_for('main.register'))
+       
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists', 'error')
+            return redirect(url_for('main.register'))
+       
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+       
+        flash('Registration successful. Please log in.', 'success')
+        return redirect(url_for('main.login'))
+   
+    return render_template('register.html')
+
+@main.route('/logout')
+@login_required
 def logout():
-    session.clear()
-    return redirect("/")
+    logout_user()
+    return redirect(url_for('main.index'))
+
+@main.route('/chat/<username>')
+@login_required
+def chat(username):
+    if username != current_user.username:
+        flash('You can only access your own chat.', 'error')
+        return redirect(url_for('main.chat', username=current_user.username))
+    return render_template('chat.html', username=username)
+
+@main.route('/api/users')
+@login_required
+def get_users():
+    users = User.query.all()
+    return jsonify([user.username for user in users if user != current_user])
+
+@main.route('/delete_message/<int:message_id>', methods=['POST'])
+@login_required
+def delete_message(message_id):
+    message = Message.query.get(message_id)
+    if message and (message.sender_id == current_user.id or message.recipient_id == current_user.id):
+        db.session.delete(message)
+        db.session.commit()
+        return jsonify({'success': True}), 200
+    return jsonify({'success': False, 'error': 'Message not found or permission denied'}), 404
