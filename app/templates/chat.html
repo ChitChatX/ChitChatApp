@@ -1,25 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chit Chat - Chat</title>
-    <link rel="stylesheet" href='{{ url_for( 'static', filename = "css/chat.css")}}'>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-</head>
-<body>
-    <header>
-        <h1>Welcome, {{ user_name }}!</h1>
-        <a href='{{ url_for('main.logout')}}' class='logout-btn'>Logout</a>
-    </header>
-    <div class="chat-container">
-        <div class="messages"></div>
-        <div class='message-input-container'>
-            <input type='text' class='message-input' placeholder='Type a message...' autocomplete='off'>
-            <button class='send-button'> Send </button>
-        </div>
-      </div>
-      <script src='{{ url_for( 'static', filename = "js/chat.js")}}' defer></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Room</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/chat.css') }}"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  </head>
+  <body class="bg-gray-100 h-screen">
+    <div id="root"></div>
+    <script
+      type="text/babel"
+      src="{{ url_for('static', filename='js/chat.js') }}"
+    ></script>
+    <script>
+      const username = '{{ current_user.username }}';
+      const logoutUrl = '{{ url_for("logout") }}';
+    </script>
+  </body>
 </html>
