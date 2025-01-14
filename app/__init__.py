@@ -1,22 +1,35 @@
-import os
-from flask import Flask, session
+from flask import Flask
 from flask_session import Session
 from flask_socketio import SocketIO
-from dotenv import load_dotenv
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+from flask_dance.contrib.google import make_google_blueprint
 
-load_dotenv()
-
+db = SQLAlchemy()
 socketio = SocketIO()
+login_manager = LoginManager()
+
 
 def create_app():
     app = Flask(__name__)
+    app.config.from_object('config.Config')
     
-    app.config['SECRET_KEY'] = 'SECRET_KEY'
-    app.config["SESSION_TYPE"] = "filesystem"
-    Session(app)
-    
+    #Extensions
+    db.init_app(app)
     socketio.init_app(app)
+    login_manager.init_app(app)
     
-    from app.routes import main_bp
+    #Blueprints
+    from .routes import main_bp
     app.register_blueprint(main_bp)
     return app
+
+def register_google_blueprint(app):
+    google_bp = make_google_blueprint(app)(
+        client_id=app.config("GOOGLE_0AUTH_CLIENT_ID"),
+        client_secret=app.config("GOOGLE_0AUTH_CLIENT_SECRET"),
+        scope=[
+            "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile", "openid"
+        ]  
+    )
+    app.register_blueprint(google_bp, url_prefix="/login")
