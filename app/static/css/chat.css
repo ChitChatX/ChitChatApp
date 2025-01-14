@@ -1,59 +1,90 @@
-.logout-btn {
-    padding: 10px 15px;
-    color: rgb(249, 215, 215);
-    border-radius: 5px;
+.status-message {
+  color: #6b7280;
+  font-style: italic;
 }
+
+.message-container {
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.message-container p {
+  font-size: 1.5rem; 
+  margin: 0; 
+}
+
+.message-sender {
+  font-weight: 600;
+}
+
 .chat-container {
-    width: 100%;
-    max-width: 500px;
-    height: 90%;
-    background: white;
-    border-radius: 20px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 1rem;
 }
 
-.messages {
-    flex: 1;
-    padding: 10px;
-    overflow-y: auto;
+.chat-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
 }
 
-.message {
-    display: flex;
-    flex-direction: column;
-    margin: 5px 0;
-    max-width: 80%;
+.chat-messages {
+  flex-grow: 1;
+  overflow: auto;
+  margin-bottom: 1rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  padding: 1rem;
 }
 
-.message.sent {
-    align-self: flex-end;
-    background-color: #007aff;
-    color: white;
-    border-radius: 16px 16px 0 16px;
-    padding: 10px;
+.chat-form {
+  display: flex;
+  gap: 0.5rem;
 }
 
-.message.receive {
-    align-self: flex-end;
-    background-color: #f1f0f0;
-    color: black;
-    border-radius: 16px 16px 16px 0;
-    padding: 10px;
-
+.chat-select,
+.chat-input,
+.chat-button {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
 }
 
-.timestamp {
-    font-size: 0.75rem;
-    margin-top: 4px;
-    color: #8e8e93;
-    text-align: right;
+.chat-input {
+  flex-grow: 1;
 }
 
-.message-input-container {
-    display: flex;
-    align-items: center;
-    
+.chat-checkbox-container {
+  display: flex;
+  align-items: center;
+}
+
+.chat-button {
+  background-color: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+.chat-button:hover {
+  background-color: #2563eb;
+}
+
+.delete-button {
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  opacity: 0; 
+  transition: opacity 0.3s ease; 
+}
+
+.message-container:hover .delete-button {
+  opacity: 1; 
 }
