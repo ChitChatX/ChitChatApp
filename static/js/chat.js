@@ -1,4 +1,3 @@
-
 let messages = [];
 let inputMessage = '';
 let recipient = 'Everyone'; 
