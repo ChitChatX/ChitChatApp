@@ -1,31 +1,97 @@
+<!-- chat.html -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Room</title>
+    <title>ChitChat - Messages</title>
     <link
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
       rel="stylesheet"
+      href="{{ url_for('static', filename='css/auth.css') }}"
     />
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/chat.css') }}"
     />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body class="bg-gray-100 h-screen">
-    <div id="root"></div>
-    <script
-      type="text/babel"
-      src="{{ url_for('static', filename='js/chat.js') }}"
-    ></script>
-    <script>
-      const username = '{{ current_user.username }}';
-      const logoutUrl = '{{ url_for("logout") }}';
-    </script>
+  <body>
+    <!-- Main Chat Layout -->
+    <div class="chat-layout">
+      <!-- Fixed Sidebar -->
+      <aside class="chat-sidebar">
+        <!-- Logo Section -->
+        <div class="sidebar-header">
+          <img
+            src="{{ url_for('static', filename='logoP.png') }}"
+            alt="ChitChat Logo"
+            class="logo"
+          />
+          <h2 class="current-user">{{ username }}</h2>
+        </div>
+
+        <!-- Recipients List -->
+        <div class="recipients-container">
+          <h3 class="section-title">Direct Messages</h3>
+          <ul class="recipients-list" id="recipients-list">
+            <!-- Everyone will always be first -->
+            <li class="recipient-item active" data-recipient="Everyone">
+              <span class="recipient-name">Everyone</span>
+              <span class="unread-count">0</span>
+            </li>
+            <!-- Dynamic users will be inserted here -->
+          </ul>
+        </div>
+
+        <!-- Logout Section -->
+        <div class="sidebar-footer">
+          <button class="logout-btn" onclick="handleLogout()">
+            <img
+              src="{{ url_for('static', filename='logout-icon.svg') }}"
+              alt="Logout"
+            />
+            Sign Out
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Chat Area -->
+      <main class="chat-main">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <h2 class="current-recipient">Everyone</h2>
+        </div>
+
+        <!-- Messages Container -->
+        <div class="messages-container" id="messages-container">
+          <div class="messages-scroll">
+            <!-- Messages will be inserted here -->
+            <div class="messages-end-ref"></div>
+          </div>
+        </div>
+
+        <!-- Message Input Form -->
+        <form class="message-form" id="message-form">
+          <input
+            type="text"
+            class="message-input"
+            placeholder="Type your message..."
+            autocomplete="off"
+            required
+          />
+          <button type="submit" class="send-button">
+            <img
+              src="{{ url_for('static', filename='send-icon.svg') }}"
+              alt="Send Message"
+            />
+          </button>
+        </form>
+      </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
   </body>
 </html>

@@ -1,278 +1,276 @@
-let messages = [];
-let inputMessage = '';
-let recipient = 'Everyone'; 
-let isPrivate = false;
-let users = [];
-let currentRecipient = 'Everyone';
+// chat.js
+document.addEventListener('DOMContentLoaded', () => {
+  const socket = io();
+  let currentUser = '{{ username }}';
+  let currentRecipient = 'Everyone';
+  let messages = [];
+  let users = [];
+  let unreadCounts = {};
 
-// Create socket connection
-const socket = io();
+  // DOM Elements
+  const messagesContainer = document.querySelector('.messages-scroll');
+  const messageForm = document.getElementById('message-form');
+  const messageInput = document.querySelector('.message-input');
+  const recipientsList = document.getElementById('recipients-list');
+  const currentRecipientEl = document.querySelector('.current-recipient');
 
-// Create chat container
-const chatContainer = document.createElement('div');
-chatContainer.className = 'chat-container';
-
-// Create chat header
-const chatHeader = document.createElement('div');
-chatHeader.className = 'chat-header';
-const welcomeMessage = document.createElement('h1');
-welcomeMessage.textContent = `Welcome, ${username}!`;
-const logoutButton = document.createElement('button');
-logoutButton.textContent = 'Logout';
-logoutButton.className = 'logout-btn';
-logoutButton.onclick = handleLogout;
-chatHeader.appendChild(welcomeMessage);
-chatHeader.appendChild(logoutButton);
-chatContainer.appendChild(chatHeader);
-
-// Create chat messages container
-const chatMessages = document.createElement('div');
-chatMessages.className = 'chat-messages';
-chatContainer.appendChild(chatMessages);
-
-// Create messages end reference
-const messagesEndRef = document.createElement('div');
-chatMessages.appendChild(messagesEndRef);
-
-// Create chat form
-const chatForm = document.createElement('form');
-chatForm.className = 'chat-form';
-chatForm.onsubmit = sendMessage;
-
-// Create recipient select
-const recipientSelect = document.createElement('select');
-recipientSelect.className = 'chat-select';
-recipientSelect.required = true;
-// onchange event handler to update recipient
-recipientSelect.onchange = (e) => {
-  recipient = e.target.value; 
-};
-const defaultOption = document.createElement('option');
-defaultOption.value = '';
-defaultOption.textContent = 'Select recipient';
-recipientSelect.appendChild(defaultOption);
-const everyoneOption = document.createElement('option');
-everyoneOption.value = 'Everyone';
-everyoneOption.textContent = 'Everyone';
-recipientSelect.appendChild(everyoneOption);
-chatForm.appendChild(recipientSelect);
-
-// Create message input
-const messageInput = document.createElement('input');
-messageInput.type = 'text';
-messageInput.placeholder = 'Type a message...';
-messageInput.className = 'chat-input';
-messageInput.required = true;
-messageInput.oninput = (e) => {
-  inputMessage = e.target.value;
-};
-chatForm.appendChild(messageInput);
-
-// Create send button
-const sendButton = document.createElement('button');
-sendButton.type = 'submit';
-sendButton.className = 'chat-button';
-sendButton.textContent = 'Send';
-chatForm.appendChild(sendButton);
-
-// Append form to chat container
-chatContainer.appendChild(chatForm);
-document.getElementById('root').appendChild(chatContainer);
-
-// Socket event listeners
-socket.on('connect', () => {
-  console.log('Connected to the server');
-  socket.emit('join', { username: username });
-  socket.emit('get_messages', { recipient: 'Everyone' });
-});
-
-socket.on('disconnect', () => {
-  console.log('Disconnected from server');
-});
-
-socket.on('connect_error', (error) => {
-  console.error('Connection error:', error);
-  if (error.message === 'Unauthorized') {
-    window.location.href = '/login';
+  // Initialize Chat
+  function initializeChat() {
+    setupEventListeners();
+    setupSocketEvents();
+    fetchUsers();
+    loadMessages(currentRecipient);
   }
-});
 
-// Message handler for all incoming messages
-socket.on('receive_message', (data) => {
-  console.log('Received message:', data); // Debug line
-  messages.push(data);
-  renderMessages();
-});
+  // Event Listeners Setup
+  function setupEventListeners() {
+    // Message submission
+    messageForm.onsubmit = handleMessageSubmit;
 
-socket.on('error', (data) => {
-  console.error('Socket error:', data); // Debug line
-});
+    // Recipient selection
+    recipientsList.onclick = handleRecipientSelection;
 
-socket.on('load_messages', (data) => {
-  messages = data.messages;
-  renderMessages();
-});
+    // Delete message handler
+    messagesContainer.addEventListener('click', handleMessageDelete);
+  }
 
-socket.on('status', (data) => {
-  messages.push({ content: data.msg, isStatus: true });
-  renderMessages();
-});
-
-// Send message function
-function sendMessage(e) {
-  e.preventDefault();
-  if (inputMessage && currentRecipient) {
-    console.log('Sending message:', {
-      // Debug line
-      message: inputMessage.trim(),
-      recipient: currentRecipient,
-      is_private: isPrivate,
+  // Socket.IO Event Handlers
+  function setupSocketEvents() {
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      socket.emit('join', { username: currentUser });
     });
 
-    socket.emit('send_message', {
-      message: inputMessage.trim(),
-      recipient: currentRecipient,
-      is_private: currentRecipient !== 'Everyone', // Automatically set private based on recipient
+    socket.on('receive_message', handleIncomingMessage);
+    socket.on('load_messages', updateMessageHistory);
+    socket.on('update_users', updateRecipientsList);
+    socket.on('disconnect', () => console.log('Disconnected'));
+    socket.on('error', handleSocketError);
+    socket.on('message_sent', handleMessageConfirmation);
+  }
+
+  // Message Handling
+  function handleMessageSubmit(e) {
+    e.preventDefault();
+    const content = messageInput.value.trim();
+
+    if (content && currentRecipient) {
+      const tempId = Date.now(); // Temporary ID for optimistic UI
+      const newMessage = {
+        id: tempId,
+        sender: currentUser,
+        content: content,
+        recipient: currentRecipient,
+        is_private: currentRecipient !== 'Everyone',
+        timestamp: new Date().toISOString(),
+        status: 'sending',
+      };
+
+      // Optimistic UI update
+      messages.push(newMessage);
+      renderMessage(newMessage);
+
+      socket.emit('send_message', {
+        message: content,
+        recipient: currentRecipient,
+        is_private: currentRecipient !== 'Everyone',
+      });
+
+      messageInput.value = '';
+      scrollToBottom();
+    }
+  }
+
+  function handleIncomingMessage(message) {
+    // Update unread counts if not current recipient
+    if (
+      message.sender !== currentUser &&
+      message.recipient !== currentRecipient
+    ) {
+      incrementUnreadCount(message.sender);
+    }
+
+    if (shouldDisplayMessage(message)) {
+      messages.push(message);
+      renderMessage(message);
+      scrollToBottom();
+    }
+  }
+
+  function handleMessageConfirmation(serverMessage) {
+    const index = messages.findIndex((m) => m.id === serverMessage.tempId);
+    if (index > -1) {
+      messages[index] = serverMessage;
+      updateMessageElement(serverMessage);
+    }
+  }
+
+  // Message Rendering
+  function renderMessage(message) {
+    const isSent = message.sender === currentUser;
+    const timestamp = new Date(message.timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
     });
 
-    messageInput.value = '';
-    inputMessage = '';
-  } else {
-    console.error('Message or recipient missing', {
-      inputMessage,
-      currentRecipient,
+    const messageEl = document.createElement('div');
+    messageEl.className = `message-bubble ${isSent ? 'sent' : 'received'}`;
+    messageEl.dataset.messageId = message.id;
+    messageEl.innerHTML = `
+          <div class="message-content">${message.content}</div>
+          <div class="message-meta">
+              <span class="message-time">${timestamp}</span>
+              ${
+                isSent
+                  ? `<span class="message-status">${
+                      message.status === 'sending' ? '🕒' : '✓'
+                    }</span>`
+                  : ''
+              }
+              ${
+                !isSent
+                  ? `<button class="delete-button" data-id="${message.id}">×</button>`
+                  : ''
+              }
+          </div>
+      `;
+
+    messagesContainer.appendChild(messageEl);
+  }
+
+  function updateMessageElement(message) {
+    const messageEl = document.querySelector(
+      `[data-message-id="${message.id}"]`
+    );
+    if (messageEl) {
+      const statusEl = messageEl.querySelector('.message-status');
+      if (statusEl) {
+        statusEl.textContent = '✓';
+      }
+    }
+  }
+
+  // Message History Management
+  function updateMessageHistory(data) {
+    messages = data.messages;
+    messagesContainer.innerHTML = '';
+    messages.forEach(renderMessage);
+    scrollToBottom();
+  }
+
+  // Recipient Management
+  function handleRecipientSelection(e) {
+    const listItem = e.target.closest('.recipient-item');
+    if (!listItem) return;
+
+    const recipient = listItem.dataset.recipient;
+    if (recipient === currentRecipient) return;
+
+    setActiveRecipient(recipient);
+    loadMessages(recipient);
+  }
+
+  function setActiveRecipient(recipient) {
+    currentRecipient = recipient;
+    document.querySelectorAll('.recipient-item').forEach((item) => {
+      item.classList.toggle('active', item.dataset.recipient === recipient);
+    });
+    currentRecipientEl.textContent = recipient;
+  }
+
+  // User Management
+  async function fetchUsers() {
+    try {
+      const response = await fetch('/api/users');
+      users = await response.json();
+      updateRecipientsList(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  }
+
+  function updateRecipientsList(users) {
+    recipientsList.innerHTML = '';
+
+    // Add Everyone first
+    const everyoneItem = createRecipientItem(
+      'Everyone',
+      unreadCounts['Everyone'] || 0
+    );
+    recipientsList.appendChild(everyoneItem);
+
+    // Add other users
+    users.forEach((user) => {
+      if (user !== currentUser) {
+        const item = createRecipientItem(user, unreadCounts[user] || 0);
+        recipientsList.appendChild(item);
+      }
     });
   }
-}
 
-socket.on('message_sent', (data) => {
-  console.log('Message sent confirmation:', data); // debug line
-  const newMessage = {
-    sender: data.sender,
-    content: data.content,
-    is_private: data.is_private,
-    timestamp: data.timestamp,
+  function createRecipientItem(username, unread = 0) {
+    const item = document.createElement('li');
+    item.className = 'recipient-item';
+    item.dataset.recipient = username;
+    item.innerHTML = `
+          <span class="recipient-name">${username}</span>
+          ${unread > 0 ? `<span class="unread-count">${unread}</span>` : ''}
+      `;
+    return item;
+  }
+
+  // Message Deletion
+  function handleMessageDelete(e) {
+    if (e.target.classList.contains('delete-button')) {
+      const messageId = e.target.dataset.id;
+      fetch(`/delete_message/${messageId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then((response) => {
+          if (response.ok) {
+            e.target.closest('.message-bubble').remove();
+          }
+        })
+        .catch((error) => console.error('Error:', error));
+    }
+  }
+
+  function scrollToBottom() {
+    messagesContainer.scrollTo({
+      top: messagesContainer.scrollHeight,
+      behavior: 'smooth',
+    });
+  }
+
+  // Utilities
+  function loadMessages(recipient) {
+    socket.emit('get_messages', { recipient });
+  }
+
+  function shouldDisplayMessage(message) {
+    return (
+      message.recipient === currentRecipient ||
+      message.sender === currentRecipient ||
+      (currentRecipient === 'Everyone' && !message.is_private)
+    );
+  }
+
+  // Ensure handleLogout is defined in the global scope
+  window.handleLogout = function () {
+    window.location.href = '/logout'; 
   };
 
-  messages.push(newMessage);
-  renderMessages();
-});
-
-// Handle logout
-function handleLogout() {
-  window.location.href = logoutUrl;
-}
-
-// Update recipient select handler
-recipientSelect.onchange = (e) => {
-  currentRecipient = e.target.value || 'Everyone';
-  messages = [];
-  socket.emit('get_messages', { recipient: currentRecipient });
-};
-
-// Update renderMessages function
-function renderMessages() {
-  console.log('Rendering messages:', messages); // debug line
-  console.log('Current recipient:', currentRecipient); // debug line
-
-  chatMessages.innerHTML = '';
-
-  const filteredMessages = messages.filter((msg) => {
-    if (msg.isStatus) {
-      return true;
-    }
-
-    if (currentRecipient === 'Everyone') {
-      return !msg.is_private;
-    } else {
-      return (
-        (msg.sender === currentRecipient && msg.recipient === username) ||
-        (msg.sender === username && msg.recipient === currentRecipient)
-      );
-    }
-  });
-
-  console.log('Filtered messages:', filteredMessages); // Debug line
-
-  filteredMessages.forEach((msg) => {
-    const messageContainer = document.createElement('div');
-    messageContainer.className = `message-container ${
-      msg.is_private ? 'private-message' : ''
-    } ${msg.sender === username ? 'sent' : 'received'}`;
-
-    const messageContent = document.createElement('p');
-    if (msg.isStatus) {
-      messageContent.className = 'status-message';
-      messageContent.textContent = msg.content;
-    } else {
-      messageContent.innerHTML = `
-          <span class='message-sender'>${msg.sender}:</span> 
-          ${msg.content}
-          <button class="delete-button" data-id="${msg.id}"> Delete </button>
-        `;
-    }
-
-    messageContainer.appendChild(messageContent);
-    chatMessages.appendChild(messageContainer);
-  });
-
-  messagesEndRef.scrollIntoView({ behavior: 'smooth' });
-}
-
-// Deletes Chat messages
-chatMessages.addEventListener('click', (event) => {
-  if (event.target.classList.contains('delete-button')) {
-    const messageId = event.target.getAttribute('data-id');
-    fetch(`/delete_message/${messageId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((response) => {
-        if (response.ok) {
-          event.target.closest('.message-container').remove();
-        } else {
-          console.error('Failed to delete message');
-        }
-      })
-      .catch((error) => console.error('Error:', error));
-  }
-});
-
-// Fetch users and populate select
-const fetchUsers = async () => {
-  try {
-    const response = await fetch('/api/users');
-    if (response.ok) {
-      const data = await response.json();
-      users = data;
-      populateUsers();
-    } else if (response.status === 401) {
+  // Error Handling
+  function handleSocketError(error) {
+    console.error('Socket error:', error);
+    if (error.msg === 'Unauthorized') {
       window.location.href = '/login';
     }
-  } catch (error) {
-    console.error('Error fetching users:', error);
   }
-};
 
-const populateUsers = () => {
-  recipientSelect.innerHTML = '';
-  const defaultOption = document.createElement('option');
-  defaultOption.value = '';
-  defaultOption.textContent = 'Select recipient';
-  recipientSelect.appendChild(defaultOption);
-  const everyoneOption = document.createElement('option');
-  everyoneOption.value = 'Everyone';
-  everyoneOption.textContent = 'Everyone';
-  recipientSelect.appendChild(everyoneOption);
-  users.forEach((user) => {
-    const option = document.createElement('option');
-    option.value = user;
-    option.textContent = user;
-    recipientSelect.appendChild(option);
-  });
-};
-
-// Initialize by fetching users
-fetchUsers();
+  // Initialize the chat
+  initializeChat();
+});
