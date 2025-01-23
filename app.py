@@ -14,8 +14,8 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for development
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chat.db'
-app.config['GOOGLE_OAUTH_CLIENT_ID'] = ''
-app.config['GOOGLE_OAUTH_CLIENT_SECRET'] = ''
+app.config['GOOGLE_OAUTH_CLIENT_ID'] = ""
+app.config['GOOGLE_OAUTH_CLIENT_SECRET'] = ""
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)

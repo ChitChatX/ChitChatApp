@@ -9,8 +9,8 @@
 }
 
 .message-container p {
-  font-size: 1.5rem; 
-  margin: 0; 
+  font-size: 1.5rem; /* Adjust this value to increase the message font size */
+  margin: 0; /* Optional: Remove default margin for better alignment */
 }
 
 .message-sender {
@@ -81,10 +81,10 @@
   font-size: 0.75rem;
   cursor: pointer;
   margin-left: 0.5rem;
-  opacity: 0; 
-  transition: opacity 0.3s ease; 
+  opacity: 0; /* Initially invisible */
+  transition: opacity 0.3s ease; /* Smooth transition */
 }
 
 .message-container:hover .delete-button {
-  opacity: 1; 
+  opacity: 1; /* Make visible on hover */
 }

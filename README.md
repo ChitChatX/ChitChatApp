@@ -21,10 +21,13 @@ This is a basic chat application built with Flask, utilizing Google OAuth for us
 ## Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/flask-chat-app.git
 
-   install requirements file using 
+   ```bash
+   git clone https://github.com/your-username/ChitChat.git
+
+   install requirements file using
+
+   ```
 
 2. **Install Dependencies**
 

@@ -1,10 +1,10 @@
-
+// Initialize variables
 let messages = [];
 let inputMessage = '';
-let recipient = 'Everyone'; 
+let recipient = 'Everyone'; // This wasn't being updated when selection changed
 let isPrivate = false;
 let users = [];
-let currentRecipient = 'Everyone';
+let currentRecipient = 'Everyone'; // Track current recipient
 
 // Create socket connection
 const socket = io();
@@ -44,9 +44,9 @@ chatForm.onsubmit = sendMessage;
 const recipientSelect = document.createElement('select');
 recipientSelect.className = 'chat-select';
 recipientSelect.required = true;
-// onchange event handler to update recipient
+// Add onchange event handler to update recipient
 recipientSelect.onchange = (e) => {
-  recipient = e.target.value; 
+  recipient = e.target.value; // Add this line to track selected recipient
 };
 const defaultOption = document.createElement('option');
 defaultOption.value = '';
@@ -98,7 +98,7 @@ socket.on('connect_error', (error) => {
   }
 });
 
-// Message handler for all incoming messages
+// Single message handler for all incoming messages
 socket.on('receive_message', (data) => {
   console.log('Received message:', data); // Debug line
   messages.push(data);
@@ -146,8 +146,9 @@ function sendMessage(e) {
   }
 }
 
+// Remove duplicate message_sent event listener and keep only one
 socket.on('message_sent', (data) => {
-  console.log('Message sent confirmation:', data); // debug line
+  console.log('Message sent confirmation:', data); // Add logging
   const newMessage = {
     sender: data.sender,
     content: data.content,
@@ -173,8 +174,8 @@ recipientSelect.onchange = (e) => {
 
 // Update renderMessages function
 function renderMessages() {
-  console.log('Rendering messages:', messages); // debug line
-  console.log('Current recipient:', currentRecipient); // debug line
+  console.log('Rendering messages:', messages); // Debug line
+  console.log('Current recipient:', currentRecipient); // Debug line
 
   chatMessages.innerHTML = '';
 
@@ -220,7 +221,6 @@ function renderMessages() {
   messagesEndRef.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Deletes Chat messages
 chatMessages.addEventListener('click', (event) => {
   if (event.target.classList.contains('delete-button')) {
     const messageId = event.target.getAttribute('data-id');
@@ -232,6 +232,7 @@ chatMessages.addEventListener('click', (event) => {
     })
       .then((response) => {
         if (response.ok) {
+          // Remove the message from the UI
           event.target.closest('.message-container').remove();
         } else {
           console.error('Failed to delete message');
