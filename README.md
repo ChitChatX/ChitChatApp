@@ -23,14 +23,18 @@ This is a basic chat application built with Flask, utilizing Google OAuth for us
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-username/ChitChat.git
+   git clone https://github.com/your-username/ChitChatApp.git
 
-   install requirements file using
-
+2. **Create and activate the virtual environment**
+   ```bash
+   python3 -m venv myvenv
+   .venv\Scripts\activate 
    ```
-
 2. **Install Dependencies**
-
    ```bash
    pip install -r requirements.txt
+   ```
+4. **Start App**
+   ```bash
+   flask run
    ```

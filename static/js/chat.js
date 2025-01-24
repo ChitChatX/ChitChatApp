@@ -30,9 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Recipient selection
     recipientsList.onclick = handleRecipientSelection;
 
-    // Message container scroll
-    messagesContainer.onscroll = handleScroll;
-
     // Delete message handler
     messagesContainer.addEventListener('click', handleMessageDelete);
   }
@@ -101,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handleMessageConfirmation(serverMessage) {
-    // Replace temporary message with server-confirmed message
     const index = messages.findIndex((m) => m.id === serverMessage.tempId);
     if (index > -1) {
       messages[index] = serverMessage;
@@ -171,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (recipient === currentRecipient) return;
 
     setActiveRecipient(recipient);
-    resetUnreadCount(recipient);
     loadMessages(recipient);
   }
 
@@ -224,43 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return item;
   }
 
-  // Unread Count Management
-  function incrementUnreadCount(sender) {
-    unreadCounts[sender] = (unreadCounts[sender] || 0) + 1;
-    updateRecipientBadge(sender);
-  }
-
-  function resetUnreadCount(recipient) {
-    if (unreadCounts[recipient]) {
-      unreadCounts[recipient] = 0;
-      updateRecipientBadge(recipient);
-    }
-  }
-
-  function updateRecipientBadge(username) {
-    const item = Array.from(recipientsList.children).find(
-      (el) => el.dataset.recipient === username
-    );
-
-    if (item) {
-      const badge = item.querySelector('.unread-count');
-      const count = unreadCounts[username] || 0;
-
-      if (count > 0) {
-        if (!badge) {
-          item.insertAdjacentHTML(
-            'beforeend',
-            `<span class="unread-count">${count}</span>`
-          );
-        } else {
-          badge.textContent = count;
-        }
-      } else if (badge) {
-        badge.remove();
-      }
-    }
-  }
-
   // Message Deletion
   function handleMessageDelete(e) {
     if (e.target.classList.contains('delete-button')) {
@@ -278,12 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch((error) => console.error('Error:', error));
     }
-  }
-
-  // Scroll Management
-  function handleScroll() {
-    const scrollTop = messagesContainer.scrollTop;
-    if (scrollTop < 100) loadOlderMessages();
   }
 
   function scrollToBottom() {
@@ -308,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Ensure handleLogout is defined in the global scope
   window.handleLogout = function () {
-    window.location.href = '/logout'; // Redirect to the logout route
+    window.location.href = '/logout'; 
   };
 
   // Error Handling

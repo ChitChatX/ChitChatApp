@@ -5,7 +5,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_dance.contrib.google import make_google_blueprint, google 
 from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
 from flask_dance.consumer import oauth_authorized 
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash 
 from datetime import datetime
 import os
 
